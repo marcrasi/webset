@@ -36,12 +36,12 @@ exports.apply = function(app)
 {
 app.get('/games_dump.json',function(req,res)
 {
+  var start = parseInt(req.query.start, 10);
   db.games.find(
   { /* query */
     /* none */
-  },
-  function(err,qres) /* result function */
-  {
+  }).skip(start).limit(100,
+  function(err,qres) /* result function */  {
     if(err)
     {
       res.end('Database error');
