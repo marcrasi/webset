@@ -13,5 +13,6 @@ II: Do the upgrade
 (3) "screen -x" to connect to current server, Ctrl-C to kill it
 (4) Run the migration script
 (5) Copy the old "webset/run" and "webset/node_modules" into new production directory
+(5) REMEMBER TO CHANGE THE SECRET FROM blaberfish_443xfd to something else!!
 (5) "supervise webset"
 (6) Open up to make sure everything is working

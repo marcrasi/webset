@@ -1,4 +1,4 @@
-function tester(myun, socket, mean, randomness, gameid)
+function tester(myun, socket, mean, randomness, gameid, secret)
 {
    //console.log(mean);
    //console.log(randomness);
@@ -27,7 +27,7 @@ function tester(myun, socket, mean, randomness, gameid)
       noset_declaration_callback: noset_declaration
    };
    ctl = controller(par);
-   ctl.connect('blaberfish_443xfd', myun);
+   ctl.connect(secret, myun);
 
    /* UTILS */
    /* Return true if a and b are the same card, false otherwise */
