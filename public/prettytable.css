@@ -1,0 +1,43 @@
+.pretty_table
+{
+   border: 1px solid black;
+   margin: 10px;
+   border-collapse: collapse;
+}
+.pretty_table>thead>tr>td
+{
+   border: 1px solid black;
+   border-bottom: 2px solid black;
+   padding: 5px;
+}
+.game_entry
+{
+   padding: 2px;
+   border-bottom: 1px solid black;
+}
+.game_entry>td
+{
+  padding-left: 2px;
+}
+.info_entry
+{
+   color: gray;
+}
+.info_entry>td
+{
+   padding: 4px;
+}
+.info_entry:hover
+{
+   color: black;
+}
+.data_entry>td
+{
+   border: 1px solid black;
+   padding: 4px;
+}
+.player_entry
+{
+   color: purple;
+   margin: 2px;
+}

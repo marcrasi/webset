@@ -1,0 +1,105 @@
+<html>
+   <head>
+      <title>Multiplayer Set Game Coefficients</title>
+
+      <script src="jquery.js"></script>
+
+      <link rel="stylesheet" type="text/css" href="structure.css">
+      <link rel="stylesheet" type="text/css" href="prettytable.css">
+   </head>
+   <body>
+      <script>
+         var data = {stat_data}; 
+
+         $(document).ready(function()
+         {
+            var j = 0;
+            for(var i = 0; i < data.length; i++)
+            {
+               var s = data[i].statistic;
+
+               if(parseInt(s.total)<10)
+               {
+                  continue;
+               }
+               else
+               {
+                  j++;
+               }
+
+               var tr = $('<tr>').attr('class','data_entry');
+              
+               if(j % 2 == 0)
+               {
+                  tr.css('background-color','lightgreen');
+               }
+               else
+               {
+                  tr.css('background-color','lightblue');
+               }
+              
+               if(data[i].username == '{username}')
+               {
+                  tr.css('font-weight','bold');
+               }
+               
+               var player = $('<td>');
+               player.text(data[i].username);
+               tr.append(player);
+
+               var mononumber = $('<td>');
+               var mononumberval = parseInt(s.mononumber)/parseInt(s.total);
+               mononumber.text('' + mononumberval.toFixed(3));
+               tr.append(mononumber);
+
+               var monocolor = $('<td>');
+               var monocolorval = parseInt(s.monocolor)/parseInt(s.total);
+               monocolor.text('' + monocolorval.toFixed(3));
+               tr.append(monocolor);
+
+               var monoshape = $('<td>');
+               var monoshapeval = parseInt(s.monoshape)/parseInt(s.total);
+               monoshape.text('' + monoshapeval.toFixed(3));
+               tr.append(monoshape);
+
+               var monoshading = $('<td>');
+               var monoshadingval = parseInt(s.monoshading)/parseInt(s.total);
+               monoshading.text('' + monoshadingval.toFixed(3));
+               tr.append(monoshading);
+
+               $('#coeff_table').append(tr);
+            }
+         });
+      </script>
+
+      {>navbar}
+
+      <div id="main">
+
+      <h1>Coefficients</h1>
+
+      <p>The mononumeric coefficient is the number of mononumeric sets that you
+      find divided by the total number of sets that you find. The monochromatic,
+      monoshapic, and monoshadic coefficients are similar. Note that if you pick
+      sets uniformly at random, then your coefficients will approach 1/3.
+      </p>
+
+      <p>
+      You must have found at least 10 sets, in games that get played to completion, to appear here.
+      </p>
+
+      {>group_selector}
+
+      <table id="coeff_table" class="pretty_table">
+         <thead><tr style="background-color: green; color: white;">
+            <td>Player</td>
+            <td>Mononumeric</td>
+            <td>Monochromatic</td>
+            <td>Monoshapic</td>
+            <td>Monoshadic</td>
+         </tr></thead>
+      </table>
+
+      </div>
+   </body>
+</html>

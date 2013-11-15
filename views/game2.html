@@ -1,0 +1,676 @@
+<!doctype html>
+<html>
+   <head>
+      <title>Multiplayer Set Game</title>
+
+      <script src="/socket.io/socket.io.js"></script>
+      <script src="js/jquery-1.8.3.js"></script>
+      <script src="jquery.animate-colors-min.js"></script>
+      <script src="controller.js"></script>
+      <script src="fake_socket.js"></script>
+
+      <link rel="stylesheet" type="text/css" href="structure.css">
+      <link rel="stylesheet" type="text/css" href="button.css">
+      <link rel="stylesheet" type="text/css" href="prettytable.css">
+      <style>
+         /* Board Style */
+         #board
+         {
+            position: relative;
+            padding: 10px;
+         }
+         #information
+         {
+            padding: 10px;
+         }
+         /*#board>table>tbody>tr>td
+         {
+            height:62px;
+            width:95px;
+            padding:5px;
+            cursor: pointer;
+         }
+         #board>table
+         {
+            padding: 10px;
+            float: left;
+         }*/
+      </style>
+   </head>
+   <body>
+      <script>
+         /* Start magic that puts query string in urlParams */
+         /* From http://stackoverflow.com/a/2880929 */
+         var urlParams = {};
+         (function () {
+          var e,
+          a = /\+/g,  // Regex for replacing addition symbol with a space
+          r = /([^&=]+)=?([^&]*)/g,
+          d = function (s) { return decodeURIComponent(s.replace(a, " ")); },
+          q = window.location.search.substring(1);
+
+          while (e = r.exec(q))
+          urlParams[d(e[1])] = d(e[2]);
+          })();
+         /* End magic */
+      </script>
+
+      <script>
+         /* Geometry numbers */
+         var card_height = 62;
+         var card_width = 95;
+         var card_padding = 5;
+         var removal_spacing = 20;
+      </script>
+
+      <script>
+         /* Indexing utils */
+         function pos_to_relcoos(pos)
+         {
+            var ret = [];
+            ret.push(pos[0]*(card_height+2*card_padding));
+            ret.push(pos[1]*(card_width+2*card_padding));
+            return ret;
+         };
+
+         function posidx_to_relpos(posidx)
+         {
+            var pos = [];
+            pos.push(Math.floor(posidx/3));
+            pos.push(posidx % 3);
+            return pos_to_relcoos(pos);
+         }
+
+         function cardidxtoarr(cardidx)
+         {
+            var arr = [];
+            for(var i = 0; i < 4; i++)
+            {
+               arr.push(cardidx % 3);
+               cardidx = Math.floor(cardidx/3);
+            }
+            return arr;
+         }
+
+         function arrtocardidx(card)
+         {
+            return card[0]+3*(card[1]+3*(card[2]+3*card[3]));
+         }
+      </script>
+
+      <script>
+         var autodeal = false;
+         var ctl; 
+
+         var current_settings = {};
+
+         var cards_on_board = [];
+         var numcards_left;
+
+         var keyhints = [];
+
+         var cardimgs = [];
+         var numloaded = 0;
+         function setup_images()
+         {
+            for(var i = 1; i <= 81; i++)
+            {
+               cardimgs.push($('<img>'));
+            }
+         }
+         function fetch_images(directory)
+         {
+            for(var i = 1; i <= 81; i++)
+            {
+               var urlstr = directory + '/';
+               if(i < 10)
+               {
+                  urlstr += '0' + i;
+               }
+               else
+               {
+                  urlstr += i;
+               }
+               urlstr += '.gif';
+               cardimgs[i-1].attr('src',urlstr);
+               cardimgs[i-1].load(function() { numloaded += 1; });
+            }
+         }
+
+         function clear_board()
+         {
+            var replacement = {};
+            for(var i = 0; i < 21; i++)
+            {
+               replacement[i] =
+               {
+                  new_card: 0,
+                  reason: 'complete-update'
+               };
+            }
+            replace(replacement);
+         }
+
+         function setup_board()
+         {
+            var board = $('#board');
+
+            /* Set up the card clicking callbacks */
+            for(var i = 0; i < 81; i++)
+            {
+               board.append(cardimgs[i]);
+               cardimgs[i].hide();
+               cardimgs[i].data('card',cardidxtoarr(i));
+               cardimgs[i].data('onboard',false);
+               cardimgs[i].on('mousedown',function()
+               {
+                  if($(this).data('onboard'))
+                  {
+                     $(this).stop(true,true);
+                     if($(this).data('selected'))
+                     {
+                        $(this).css('border','1px solid white');
+                        $(this).data('selected',false);
+                        ctl.deselect_card($(this).data('card'));
+                     }
+                     else
+                     {
+                        $(this).css('border','1px solid black');
+                        $(this).data('selected',true);
+                        ctl.select_card($(this).data('card'));
+                     }
+                  }
+               });
+            }
+
+            /* Set up the noset click callback */
+            $('#declare-nosets').on('click', function()
+            {
+               ctl.declare_nosets();
+            });
+
+            /* Set up the begin game callback */
+            $('#begin-game').on('click', function()
+            {
+               ctl.begin_game();
+            });
+
+            /* Set up the keypress callback */
+            $('body').keydown(function(e)
+            {
+               var idx = e.keyCode - 65;
+               if(idx >= 0 && idx < cards_on_board.length)
+               {
+                  cards_on_board[idx].mousedown();
+               }
+               if(idx == 21)
+               {
+                  $('#declare-nosets').click();
+               }
+            });
+
+            /* Set up key hints */
+            for(var i = 0; i < 21; i++)
+            {
+               var hintpos = posidx_to_relpos(i);
+               keyhints.push($('<span>'))
+               keyhints[i].text('(' + String.fromCharCode(97+i) + ')');
+               //keyhints[i].css('backgroundColor','black')
+               keyhints[i].css('color','black');
+               keyhints[i].css('position','absolute');
+               keyhints[i].css('left',hintpos[1]+card_width-16);
+               keyhints[i].css('top',hintpos[0]+card_height-16);
+               keyhints[i].css('z-index',1000);
+               keyhints[i].hide();
+               board.append(keyhints[i]); 
+            }
+         }
+
+         function connected()
+         {
+            $('#status').hide();
+            $('#board').show();
+            $('#playerlist').show();
+         }
+
+         function disconnected(reason)
+         {
+            $('#board').hide();
+            $('#playerlist').hide();
+            $('#information').hide();
+            $('#status').text('Disconnected! Reason: ' + reason);
+            $('#status').show();
+         }
+
+         function deselect_all()
+         {
+            for(var i = 0; i < cards_on_board.length; i++)
+            {
+               cards_on_board[i].data('selected',false);
+               //cards_on_board[i].css('box-shadow', '0 0 0 0');
+               cards_on_board[i].css('border','1px solid white');
+            }
+         }
+
+         function dontdrag(evt)
+         {
+            evt.preventDefault();
+         }
+
+         function replace(replacement)
+         {
+            var removed_cards = {}; //cards that have been removed by someone
+            /* Remove the old cards */
+            for(idx in replacement)
+            {
+               if(replacement.hasOwnProperty(idx))
+               {
+                  if(cards_on_board.hasOwnProperty(idx))
+                  {
+                     if(replacement[idx].reason == 'removed')
+                     {
+                        if(!removed_cards.hasOwnProperty(replacement[idx].remover))
+                        {
+                           removed_cards[replacement[idx].remover] = [];
+                        }
+                        removed_cards[replacement[idx].remover].push(cards_on_board[idx]);
+                        //cards_on_board[idx].css('box-shadow', '0 0 0 0');
+                        cards_on_board[idx].css('border','1px solid white');
+                     }
+                     else
+                     {
+                        cards_on_board[idx].data('onboard',false);
+                        cards_on_board[idx].hide();
+                     }
+                     delete cards_on_board[idx];
+                  }
+               }
+            }
+
+            /* Add the new cards */
+            for(idx in replacement)
+            {
+               if(replacement.hasOwnProperty(idx))
+               {
+                  var newcard = replacement[idx].new_card;
+                  if(newcard != 0)
+                  {
+                     var newcardpos = posidx_to_relpos(idx);
+                     var newcardidx = arrtocardidx(newcard);
+                     cardimgs[newcardidx].stop(true, true);
+                     cardimgs[newcardidx].css('opacity','100%');
+                     cardimgs[newcardidx].data('onboard',true);
+                     cardimgs[newcardidx].data('selected',false);
+                     cards_on_board[idx] = cardimgs[newcardidx];
+                     cardimgs[newcardidx].css('position', 'absolute');
+                     cardimgs[newcardidx].css('left', newcardpos[1]);
+                     cardimgs[newcardidx].css('top', newcardpos[0]);
+                     //cardimgs[newcardidx].css('box-shadow', '0 0 0 0');
+                     cardimgs[newcardidx].bind('dragstart', dontdrag);
+
+
+                     cardimgs[newcardidx].css('border','1px solid white');
+                     
+                     if(current_settings.show_newcards === '1')
+                     {
+                        cardimgs[newcardidx].css('borderColor','#ff0000');
+                        cardimgs[newcardidx].animate(
+                        {
+                           borderColor: '#ffffff'
+                        }, 1000);
+                     }
+
+                     cardimgs[newcardidx].show();
+  
+                     if(current_settings.show_keyhints === '1')
+                        keyhints[idx].show();
+                  }
+                  else
+                  {
+                     keyhints[idx].hide();
+                  }
+               }
+            }
+
+            /* Clean up undefined cards from the table */
+            /* TODO: do I really need this?? */
+            while(cards_on_board.length > 0 &&
+               !cards_on_board[cards_on_board.length-1])
+            {
+               cards_on_board.pop();
+            }
+
+            /* Animate those cards that have been removed by someone */
+            for(rmer in removed_cards)
+            {
+               var removeto_deltax = 0;
+               var y = 0;
+               for(var i = 0; i < removed_cards[rmer].length; i++)
+               {
+                  if(i % 3 == 0)
+                  {
+                     y = display_message(rmer);
+                  }
+
+                  removed_cards[rmer][i].stop(true,true);
+                  removed_cards[rmer][i].animate(
+                  {
+                     top: y, 
+                     left: removeto_startx+removeto_deltax
+                  },400);
+                  removed_cards[rmer][i].animate(
+                  {
+                     opacity: 'hide'
+                  }, 1000);
+                  removeto_deltax += 2*card_padding+card_width;
+                  if(removeto_deltax == (2*card_padding+card_width)*3)
+                  {
+                     removeto_deltax = 0;
+                  }
+                  removed_cards[rmer][i].data('onboard',false);
+               }
+            }
+         }
+
+         function noset_declared()
+         {
+            if(numcards_left == 0)
+            {
+               display_message("Finish Game Requested");
+            }
+            else
+            {
+               display_message("Cards Requested");
+            }
+         }
+
+         function noset_bad()
+         {
+            display_message("Sets Exist");
+         }
+
+         /* Display a message in a free message-displaying slot. Return the Y
+          * position of the slot where we displayed this message. */
+         var free_removal_slots = [0, 0, 0, 0];
+         var removeto_startx = (2*card_padding+card_width)*3+removal_spacing;
+         var removeto_starty = 0;
+         function display_message(msg_str)
+         {
+            for(var slot = 0; slot < free_removal_slots.length; slot++)
+            {
+               if(free_removal_slots[slot] == 0)
+               {
+                  break;
+               }
+            }
+            if(slot >= free_removal_slots.length)
+            {
+               slot = free_removal_slots.length-1;
+            }
+            free_removal_slots[slot] += 1;
+            var removeto_deltay = (2*card_padding+card_height)*slot;
+            var messagetext = $('<a>');
+            $('#board').append(messagetext);
+            messagetext
+               .css('position','absolute')
+               .css('font-size','200%')
+               .css('color','black')
+               .css('top', removeto_starty+removeto_deltay)
+               .css('left', removeto_startx+100)
+               .css('z-index', 9999)
+               .text(msg_str);
+            messagetext.data('slot',slot);
+            messagetext.animate({left: '+=0'}, 1400, null, function()
+            {
+               $(this).animate(
+               {
+                  opacity: 'hide'
+               }, 1000, null, function()
+               {
+                  free_removal_slots[$(this).data('slot')] -= 1;
+                  $(this).remove();
+               });
+            });
+            return removeto_starty+removeto_deltay;
+         }
+
+         function update_playerlist(playerlist, noset_declarers)
+         {
+            $('#playerlist>table>tbody').empty();
+            for(p in playerlist)
+            {
+               var ptext = p;
+               for(var i = 0; i < noset_declarers.length; i++)
+               {
+                  if(noset_declarers[i] == p)
+                  {
+                     ptext += ' (REQ)';
+                     break;
+                  }
+               }
+               if(playerlist.hasOwnProperty(p))
+               {
+                  var score = playerlist[p];
+                  $('#playerlist>table>tbody').append(
+                     $('<tr>').append(
+                        $('<td>')
+                           .text(ptext)
+                     )
+                     .append(
+                        $('<td>')
+                           .text(score)
+                     )
+                     .attr('class','player_entry')
+                  );
+               }
+            }
+         }
+
+         function update_cardsleft(num)
+         {
+            $('#information').show();
+            numcards_left = num;
+            if(num == -2)
+            {
+               $('#cards-left')
+               .text("Game is over.")
+               $('#begin-game').hide();
+               $('#declare-nosets').hide();
+            }
+            else if(num == -1)
+            {
+               $('#cards-left')
+               .text("Game not in progress. Click the Start button.")
+               $('#begin-game').show();
+               $('#declare-nosets').hide();
+            }
+            else
+            {
+               $('#cards-left').text('Cards Left: ' + num);
+               $('#begin-game').hide();
+               if(num == 0)
+               {
+                  $('#declare-nosets').text('Finish Game (v)');
+               }
+               else
+               {
+                  $('#declare-nosets').text('Add Cards (v)');
+               }
+
+               if(autodeal)
+                 $('#declare-nosets').hide();
+               else
+                 $('#declare-nosets').show();
+            }
+         }
+
+         function update_time(time)
+         {
+            if(time == -1)
+            {
+               $('#timer').text('Time Elapsed: --:--');
+               return;
+            }
+
+            var hours = Math.floor(time/3600);
+            var minutes = Math.floor((time%3600)/60);
+            var seconds = time % 60;
+            var timestring = '';
+            if(hours > 0)
+            {
+               timestring += hours + ':'
+            }
+            if(minutes < 10)
+            {
+               timestring += '0';
+            }
+            timestring += minutes + ':'
+            if(seconds < 10)
+            {
+               timestring += '0';
+            }
+            timestring += seconds;
+            $('#timer').text('Time Elapsed: ' + timestring);
+         }
+
+         function set_game_par(game_par)
+         {
+            /* Handle the game type */
+            t = game_par.type;
+            var pretty_type = '';
+            if(t == 'lobby')
+            {
+               pretty_type = "Lobby Game";
+            }
+            else if(t == 'practice-solitaire')
+            {
+               pretty_type = "Practice Solitaire";
+            }
+            else if(t == 'ranked-solitaire')
+            {
+               pretty_type = "Ranked Solitaire";
+            }
+            $('#gametype').text("Game Type: " + pretty_type);
+
+            /* Handle the autodealing stuff */
+            if(game_par.autodeal)
+            {
+              autodeal = true;
+            }
+            else
+            {
+              autodeal = false;
+            }
+
+            console.log(game_par);
+         }
+
+         function set_settings(settings)
+         {
+
+            current_settings = settings;
+            
+            /* Update keyhint state */
+            if(current_settings.show_keyhints === '1')
+            {
+               for(idx in cards_on_board)
+               {
+                  if(cards_on_board.hasOwnProperty(idx) && cards_on_board[idx] !== undefined)
+                  {
+                    keyhints[idx].show();
+                  }
+               }
+            }
+            if(current_settings.show_keyhints === '0')
+            {
+               for(var i = 0; i < 21; i++)
+               {
+                  keyhints[i].hide();
+               }
+            }
+            if(current_settings.colorblind === '0')
+            {
+              setup_images();
+              fetch_images('cardimgs');
+            }
+            else
+            {
+              setup_images();
+              fetch_images('cardimgs_colorblind');
+            }
+         }
+
+         $('document').ready(function()
+         {
+            setup_images();
+            setup_board();
+
+            var socket;
+            $('#status').text('Connecting to server...');
+            if(urlParams.hasOwnProperty('fake_lag'))
+            {
+               var lagpm = 0;
+               if(urlParams.hasOwnProperty('lag_pm'))
+               {
+                  lagpm = urlParams.lag_pm;
+               }
+               socket = fake_socket(parseInt(urlParams.fake_lag), parseInt(lagpm));
+            }
+            else
+            {
+               socket = io.connect();
+            }
+            par =
+            {
+               gameid: urlParams.gameid,
+               socket: socket, 
+               connected_callback: connected,
+               disconnected_callback: disconnected,
+               deselect_all_callback: deselect_all,
+               replace_callback: replace,
+               playerlist_callback: update_playerlist,
+               numcards_callback: update_cardsleft,
+               time_callback: update_time,
+               noset_declaration_callback: noset_declared,
+               noset_bad_callback: noset_bad,
+               game_par_callback: set_game_par,
+               settings_callback: set_settings
+            };
+            ctl = controller(par);
+            ctl.connect();
+
+         });
+      </script>
+      
+      {>navbar}
+
+      <div id="main">
+
+      <div id='playerlist' style="display: none; float: right; width: 30%;">
+         <table class="pretty_table" style="width: 100%; float: right;">
+            <thead>
+               <tr><td>Players In Game</td><td>Score</td></tr>
+            </thead>
+            <tbody>
+            </tbody>
+         </table>
+         <span id="gametype"></span>
+      </div>
+
+      <div id='status'>Loading page...</div>
+
+      <div id='information' style="display: none;">
+         <a id="declare-nosets" class="button">Add Cards</a>
+         <a id="begin-game" class="button">Start Game</a> 
+         <a id='cards-left' style="margin: 12px;">Cards Left: xxx</a>
+         <a id='timer' style="margin: 12px;">Time Elapsed: --:--</a>
+      </div>
+
+      <div id='board' style="display: none;">
+      </div>
+
+      </div>
+
+   </body>
+</html>
+

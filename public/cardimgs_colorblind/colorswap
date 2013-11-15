@@ -1,0 +1,26 @@
+#!/bin/bash
+for x in *
+do
+
+  z=${x:0:2}
+  z=${z##0}
+  let z=z-1
+  let count=z%3
+  let z=z/3
+  let color=z%3
+  let z=z/3
+
+  if [ $color == 0 ]
+  then
+    convert $x -fuzz 50% -fill orange -opaque red $x
+  fi 
+  #if [ $color == 1 ]
+  #then
+    #do nothing
+  #fi  
+  if [ $color == 2 ]
+  then
+    convert $x -fuzz 50% -fill black -opaque green $x
+  fi  
+
+done

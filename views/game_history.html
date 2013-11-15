@@ -1,0 +1,40 @@
+<html>
+   <head>
+      <title>Multiplayer Set Game History</title>
+
+      <link rel="stylesheet" type="text/css" href="structure.css">
+      <link rel="stylesheet" type="text/css" href="button.css">
+      <link rel="stylesheet" type="text/css" href="prettytable.css">
+   </head>
+   <body>
+      {>navbar}
+
+      <div id="main">
+
+      <h1>Game History</h1>
+
+      <p>This is a list of all the games that you, {username}, have been
+      involved in. We only log games that get played to completion.</p>
+
+      <table class="pretty_table" style="width: 100%">
+         <thead><tr>
+            <td>Date</td>
+            <td>Type</td>
+            <td>Duration</td>
+            <td>Present Whole Game?</td>
+            <td>Sets Acquired</td>
+            <td>Other Players</td>
+         </tr></thead>
+         <tbody>{for g in game_entries}<tr class="data_entry">
+            <td>{g.date}</td>
+            <td>{g.game_type}</td>
+            <td>{g.duration}</td>
+            <td>{g.present_whole_game}</td>
+            <td>{g.sets_acquired}</td>
+            <td>{g.other_players}</td>
+         </tr>{/for}</tbody>
+      </table>
+
+      </div>
+   </body>
+</html>

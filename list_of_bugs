@@ -1,0 +1,24 @@
+THINGS THAT AREN'T BUGS BUT MAYBE SHOULD BE FIXED:
+It is too easy to accidentally click on the nagivation menu while playing set.
+
+The password key-derivation is way too strong now. I don't want my server to be
+100% loaded for half a second every time someone logs in.
+---> To fix this we can have a flag for low-iteration derivation in the user
+table. When new people register they automatically get a low-iteration
+derivation. When someone who alreay has a high-iteration derivation logs in, we
+replace it with a low-iteration derivation and set their flag.
+
+OUTSTANDING BUGS:
+If the cards start moving around before they are totally loaded, then they
+can get stuck in the "removed" position.
+
+BUGS THAT HAVE MYSTERIOUSLY DISAPPEARED ON THEIR OWN:
+Sometimes we get the "Re(Start) Game" button mysteriously in the middle of a
+game. No idea how to reproduce this one yet. Just fiddle around with it.
+
+FIXED BUGS:
+If a card is fading out and then it gets added to the board, I think it
+continued fading out. So I need to kill any animations attached to cards
+that we have put on the board.
+
+Remove the outline around a card that gets removed.

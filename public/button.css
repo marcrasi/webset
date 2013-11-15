@@ -1,0 +1,18 @@
+.button
+{
+   color: black;
+   background-color: lightblue;
+   margin: 3px;
+   padding: 3px; 
+   cursor: pointer;
+}
+.button:hover
+{
+   color: white;
+   background-color: darkblue;
+}
+
+#game-name-input
+{
+  width: 400px;
+}

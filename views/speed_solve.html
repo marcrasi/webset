@@ -1,0 +1,155 @@
+<html>
+   <head>
+      <title>Multiplayer Set Game Solitaire</title>
+
+      <script src="/socket.io/socket.io.js"></script>
+      
+      <script src="jquery.js"></script>
+
+      <link rel="stylesheet" type="text/css" href="structure.css">
+      <link rel="stylesheet" type="text/css" href="button.css">
+      <link rel="stylesheet" type="text/css" href="prettytable.css">
+      <style>
+         /* The toolbar */
+         #toolbar
+         {
+            margin: 10px;
+         }
+
+         .rank_tab
+         {
+            float: left;
+            padding: 12px;
+         }
+      </style>
+   </head>
+   <body>
+      {>navbar}
+
+      <div id="main">
+
+      <h1>Solitaire</h1>
+
+      <p>Here, your goal is to use up one deck of cards as fast as possible,
+      on your own. To participate in the Daily Rankings, choose the "{todaydate}
+      Daily Solitaire" option. Then you will have one chance to solve a fixed
+      deck of cards. Everyone gets the same fixed deck of cards, and the server
+      chooses a new fixed set of cards at midnight pacific time every day. To
+      play with a random deck and without participating in the rankings, choose
+      the "Unranked" option.</p>
+       
+      <table class="pretty_table" style="width: 100%;">
+         <thead>
+            <tr>
+               <td>Solitaire Option</td>
+               <td>Status</td>
+            </tr>
+         </thead>
+         <tbody>
+            <tr class="game_entry">
+               <td><a href="ss_control?type=ranked&date={todaydate}">{todaydate} Daily Solitaire</a></td>
+               <td>{todaystatus}</td>
+            </tr>
+            <tr class="game_entry">
+               <td><a href="ss_control?type=practice">Unranked</a></td>
+               <td>N/A</td>
+            </tr>
+         </tbody>
+      </table>
+
+      <div id="tabs">
+
+      <div id="daily_ranking" class="rank_tab">
+
+      <h2>Daily Rankings ({rankdate})</h2>
+
+      <a href="speed_solve.html?rankdate={prevrankdate}#daily_tab">&lt; Previous Day</a>
+      <a href="speed_solve.html#daily_tab" style="padding:10px">Today</a>
+      <a href="speed_solve.html?rankdate={nextrankdate}#daily_tab">Next Day &gt;</a>
+
+      <table class="pretty_table"> 
+         <thead><tr>
+            <td>Rank</td>
+            <td>Player</td>
+            <td>Solve Time</td>
+            <td>NoSet Errors</td>
+         </tr></thead>
+         {if rankings}
+         <tbody>{for g in rankings}<tr class="data_entry">
+            <td>{if g.isme}<strong>{/if}{g.rank}{if g.isme}</strong>{/if}</td>
+            <td>{if g.isme}<strong>{/if}{g.username}{if g.isme}</strong>{/if}</td>
+            <td>{if g.isme}<strong>{/if}{g.pretty_solve_time}{if g.isme}</strong>{/if}</td>
+            <td>{if g.isme}<strong>{/if}{g.num_noset_bad}{if g.isme}</strong>{/if}</td>
+         </tr>{/for}</tbody>
+         {else}
+            <tr class="info_entry"><td>No one!</td><td></td><td></td><td></td></tr>
+         {/if}
+      </table>
+
+      </div>
+      
+      <div id="all_information" class="rank_tab">
+
+      <h2>Seven Day Rankings</h2>
+
+      You must have solved at least 3 out of the last 7 days to appear here.
+
+      <table class="pretty_table"> 
+         <thead><tr>
+            <td>Rank</td>
+            <td>Player</td>
+            <td>Average</td>
+            <td>StDev</td>
+            <td>Min</td>
+            <td>Max</td>
+            <td></td>
+            <td>Today</td>
+            <td>Today-1</td>
+            <td>Today-2</td>
+            <td>Today-3</td>
+            <td>Today-4</td>
+            <td>Today-5</td>
+            <td>Today-6</td>
+            <!--<td>30-Day Average</td>
+            <td>StDev</td>-->
+         </tr></thead>
+         {if seven_rankings}
+         <tbody>{for g in seven_rankings}<tr class="data_entry">
+            <td>{if g.isme}<strong>{/if}{g.rank}{if g.isme}</strong>{/if}</td>
+            <td>{if g.isme}<strong>{/if}{g.username}{if g.isme}</strong>{/if}</td>
+            <td>{if g.isme}<strong>{/if}{g.pretty_avg}{if g.isme}</strong>{/if}</td>
+            <td>{if g.isme}<strong>{/if}{g.pretty_std}{if g.isme}</strong>{/if}</td>
+            <td>{if g.isme}<strong>{/if}{g.pretty_min}{if g.isme}</strong>{/if}</td>
+            <td>{if g.isme}<strong>{/if}{g.pretty_max}{if g.isme}</strong>{/if}</td>
+
+            <td></td>
+            {for pt in g.pretty_times}
+            <td>{if g.isme}<strong>{/if}{pt}{if g.isme}</strong>{/if}</td>
+            {/for}
+
+         </tr>{/for}</tbody>
+         {else}
+            <tr class="info_entry"><td>No
+            one!</td><td></td><td></td><td></td><td></td><td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            
+            </tr>
+         {/if}
+      </table>
+
+
+
+      </div>
+
+      </div>
+
+      </div>
+   </body>
+</html>

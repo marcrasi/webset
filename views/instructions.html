@@ -1,0 +1,134 @@
+<html>
+   <head>
+      <title>Multiplayer Set Game Instructions</title>
+
+      <link rel="stylesheet" type="text/css" href="structure.css">
+   </head>
+   <body>
+      {>navbar}
+      <div id="main">
+
+      <h1>The Instructions</h1>
+
+      <h2>Joining A Game</h2>
+      <p>To join a game, click its name in the lobby. If there are no games in
+      the lobby, then click on the "Add Game" button. This will add a new game
+      with a silly randomly generated name.</p>
+      <p>If you join a game that does not already have cards on the table, click
+      the "(Re)Start Game" buttion to deal the first 12 cards.</p>
+
+      <h2>Playing A Game</h2>
+      <p>Here is what a game of set looks like:<p>
+      <table>
+         <tr>
+         <td><img src="cardimgs/14.gif"></img></td>
+         <td><img src="cardimgs/32.gif"></img></td>
+         <td><img src="cardimgs/80.gif"></img></td>
+         </tr>
+         <tr>
+         <td><img src="cardimgs/41.gif"></img></td>
+         <td><img src="cardimgs/23.gif"></img></td>
+         <td><img src="cardimgs/08.gif"></img></td>
+         </tr>
+         <tr>
+         <td><img src="cardimgs/20.gif"></img></td>
+         <td><img src="cardimgs/51.gif"></img></td>
+         <td><img src="cardimgs/19.gif"></img></td>
+         </tr>
+         <tr>
+         <td><img src="cardimgs/01.gif"></img></td>
+         <td><img src="cardimgs/15.gif"></img></td>
+         <td><img src="cardimgs/02.gif"></img></td>
+         </tr>
+      </table>
+      <p>To play, you must find "sets" on the table and collect them before
+      anyone else does. A "set" is a collection of 3 cards satisfying certain
+      properties that we will describe later.</p>
+      <p>To pick up a set, just click the three cards that make the set. If the
+      three cards really do make a set, then you will get a point and the server
+      will automatically deal 3 more cards in the place where you picked up the
+      set.</p>
+      <p>It is possible that the 12 cards on the table do not form a set. In
+      this case, you can click on "Add Cards" to add 3 more cards at a time.
+      Since a table of 21 cards is guarenteed to contain a set, you may not add
+      cards to a table of 21 cards. When you do find a set in a table with more
+      than 12 cards, the server will not deal more cards. It will instead
+      rearrange the remaining cards into a neat rectangle.</p>
+      <p>When there are no cards left in the deck, the server stops dealing
+      cards. Try to find as many sets as possible in the remaining cards on the
+      table. Once you cannot find any more sets, click "Add Cards" to end the
+      game.</p>
+
+      <h2>What Is A Set?</h2>
+      <p>Each card has 4 different properties. Here are some examples.</p>
+      <table border="1">
+         <thead>
+            <tr>
+               <td>Card</td>
+               <td>Color</td>
+               <td>Shading</td>
+               <td>Shape</td>
+               <td>Number</td>
+            </tr>
+         </thead>
+
+         <tbody>
+            <tr>
+               <td><img src="cardimgs/01.gif"></img></td>
+               <td>Red</td>
+               <td>Solid</td>
+               <td>Squiggly</td>
+               <td>1</td>
+            </tr>
+            <tr>
+               <td><img src="cardimgs/71.gif"></img></td>
+               <td>Green</td>
+               <td>Empty</td>
+               <td>Diamond</td>
+               <td>2</td>
+            </tr>
+            <tr>
+               <td><img src="cardimgs/51.gif"></img></td>
+               <td>Purple</td>
+               <td>Shaded</td>
+               <td>Oval</td>
+               <td>3</td>
+            </tr>
+         </tbody>
+      </table>
+      <p>A "color-set" is a collection of 3 cards such that either all 3
+      cards have the same color or all 3 cards have a different color.
+      Similarly, a "shading-set" is a collection of 3 cards such that either all
+      3 cards have the same shading or all 3 cards have a different shading. And
+      "shape-sets" and "number-sets" are defined similarly.</p>
+      <p>A "set" of cards is a collection of three cards that is a color-set, a
+      shading-set, a shape-set, and a number-set all at the same time. For
+      example, the collection of three cards in the above example is a "set"
+      because all the colors are different, all the shadings are different, all
+      the shapes are different, and all the numbers are different.</p>
+      <p>The following collection, on the other hand, is not a set because two
+      of the cards are green and the other is purple:</p>
+      <table>
+         <tr>
+               <td><img src="cardimgs/16.gif"></img></td>
+               <td><img src="cardimgs/80.gif"></img></td>
+               <td><img src="cardimgs/33.gif"></img></td>
+         </tr>
+      </table>
+      <p>If the last card were green, though, then all the cards would be the
+      same color, which is good. And they are different shading, shape, and
+      number. So then they are a set:</p>
+       <table>
+         <tr>
+               <td><img src="cardimgs/16.gif"></img></td>
+               <td><img src="cardimgs/80.gif"></img></td>
+               <td><img src="cardimgs/36.gif"></img></td>
+         </tr>
+      </table>
+      <p>Your goal is to find such things as quickly as possible.</p>
+      
+      <a href="/">Back To Lobby</a>
+
+      </div>
+   </body>
+</html>

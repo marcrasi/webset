@@ -1,0 +1,17 @@
+I: Test the migration script
+
+(1) On server, run "mongodump --db set-game"
+(2) Copy the dump directory to a nonserver test computer
+(3) Run "db.dropDatabase();" on the nonserver test computer mongo shell
+(4) Run "mongorestore --db set-game set-game/" on the nonserver test computer
+(5) Run the migration script
+
+II: Do the upgrade
+
+(1) Clone a fresh copy of the repo "git clone ~gitu/webset.git"
+(2) Edit main.js to listen on port 8154
+(3) "screen -x" to connect to current server, Ctrl-C to kill it
+(4) Run the migration script
+(5) Copy the old "webset/run" and "webset/node_modules" into new production directory
+(5) "supervise webset"
+(6) Open up to make sure everything is working

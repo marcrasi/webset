@@ -1,0 +1,65 @@
+<html>
+  <head>
+      <script src="jquery.js"></script>
+
+      <link rel="stylesheet" type="text/css" href="structure.css">
+      <link rel="stylesheet" type="text/css" href="button.css">
+      <link rel="stylesheet" type="text/css" href="prettytable.css">
+  </head>
+  <body>
+
+  {>navbar}
+  
+  <div id="main">
+ 
+  <script>
+
+    var settings = {settings};
+
+    $(document).ready(function()
+    {
+      for(name in settings)
+      {
+        $('[name=' + name + ']').filter('[value=' + settings[name] + ']').prop("checked",true);
+      }
+    });
+
+  </script>
+  
+  <h1>The Settings</h1>
+
+  <form action="settings.html" method="get">
+    <table>
+      <thead>
+        <tr><td>Setting</td><td>Yes</td><td>No</td>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Show keys on cards</td>
+          <td><input type="radio" name="show_keyhints" value="1"></td>
+          <td><input type="radio" name="show_keyhints" value="0"></td>
+        </tr>
+        <tr>
+          <td>Highlight newly added cards</td>
+          <td><input type="radio" name="show_newcards" value="1"></td>
+          <td><input type="radio" name="show_newcards" value="0"></td>
+        </tr>
+        <tr>
+          <td>Use red-green colorblind accessible cards</td>
+          <td><input type="radio" name="colorblind" value="1"></td>
+          <td><input type="radio" name="colorblind" value="0"></td>
+        </tr>
+        <tr>
+          <td>Automatically deselect all cards when someone collects a set intersecting with your selection</td>
+          <td><input type="radio" name="deselection_behavior" value="1"></td>
+          <td><input type="radio" name="deselection_behavior" value="0"></td>
+      <tbody>
+    </table>
+
+    <input type="submit" value="Save Settings"></input>
+  </form>
+
+  </div> 
+
+  </body>
+</html>

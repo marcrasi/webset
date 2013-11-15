@@ -1,0 +1,67 @@
+<html>
+<head>
+   <title>Stress Test</title>
+   
+   <script src="/socket.io/socket.io.js"></script>
+   <script src="jquery.js"></script>
+   <script src="controller.js"></script>
+   <script src="fake_socket.js"></script>
+   <script src="tester.js"></script>
+</head>
+
+<body>
+
+<script>
+   /* Start magic that puts query string in urlParams */
+   /* From http://stackoverflow.com/a/2880929 */
+   var urlParams = {};
+   (function () {
+    var e,
+    a = /\+/g,  // Regex for replacing addition symbol with a space
+    r = /([^&=]+)=?([^&]*)/g,
+    d = function (s) { return decodeURIComponent(s.replace(a, " ")); },
+    q = window.location.search.substring(1);
+
+    while (e = r.exec(q))
+    urlParams[d(e[1])] = d(e[2]);
+    })();
+   /* End magic */
+</script>
+
+<script>
+   if(urlParams.lag === undefined)
+   {
+      socket = io.connect();
+   }
+   else
+   {
+      if(urlParams.pm === undefined)
+      {
+         urlParams.pm = 0;
+      }
+      socket = fake_socket(parseInt(urlParams.lag),parseInt(urlParams.pm))
+   }
+
+   if(urlParams.mean === undefined)
+   {
+      urlParams.mean = 2000;
+   }
+   if(urlParams.randomess === undefined)
+   {
+      urlParams.randomess = 1000;
+   }
+
+   if(urlParams.gameid === undefined)
+   {
+      urlParams.gameid = 0;
+   }
+
+   console.log(urlParams.mean);
+   console.log(urlParams.randomess);
+   var t = tester(urlParams.un, socket,
+   parseInt(urlParams.mean),parseInt(urlParams.randomess),
+   parseInt(urlParams.gameid));
+</script>
+
+</body>
+</html>

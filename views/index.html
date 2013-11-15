@@ -1,0 +1,357 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Multiplayer Set Game Lobby</title>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="jquery.js"></script>
+    <script src="name_generator.js"></script>
+    <script src="http://code.jquery.com/ui/1.9.2/jquery-ui.js"></script>
+
+    <link rel="stylesheet" href="http://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css" />
+    <link rel="stylesheet" type="text/css" href="structure.css">
+    <link rel="stylesheet" type="text/css" href="button.css">
+    <link rel="stylesheet" type="text/css" href="prettytable.css">
+    <style>
+      /* The toolbar */
+      #toolbar
+      {
+        margin: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      var socket;
+
+      function receive_update(update)
+      {
+        $('#game_list>table>tbody>tr').each(function() {
+          if(!update.hasOwnProperty($(this).data('gid')))
+          {
+            $(this).remove();
+          }
+        });
+        var numgames = 0;
+        for(gid in update)
+        {
+          if(update.hasOwnProperty(gid))
+          {
+            numgames += 1;
+
+            var alreadyinlist = false;
+            $('#game_list>table>tbody>tr').each(function() {
+              if($(this).data('gid') == gid)
+                alreadyinlist = true;
+            });
+            if(alreadyinlist)
+              continue;
+
+            var game_entry = $('<a>')
+                              .text(update[gid].name)
+                              .attr('href', 'game2.html?gameid=' + gid);
+
+            var numplayers_entry = $('<span>')
+                                    .text(update[gid].numplayers)
+
+            var private_entry = $('<span>');
+            if(update[gid].private_game)
+            {
+              private_entry.text('Yes (who?)');
+              var private_users_string = 'Users allowed in this game:<ul style="font-size:14px;">';
+              for(var i = 0; i < update[gid].private_users.length; i++)
+              {
+                if(update[gid].private_users[i].length > 0)
+                  private_users_string += '<li>' + update[gid].private_users[i] + '</li>';
+              }
+              private_users_string += '</span>'
+              private_entry.attr('title',private_users_string);
+            }
+            else
+              private_entry.text('No');
+
+            var autodeal_entry = $('<span>');
+            if(update[gid].autodeal)
+              autodeal_entry.text('Yes');
+            else
+              autodeal_entry.text('No');
+
+            var verify_entry = $('<span>');
+            if(update[gid].verify)
+              verify_entry.text('Yes');
+            else
+              verify_entry.text('No');
+
+            $('#game_list>table>tbody').append(
+              $('<tr>').attr('class','game_entry').data('gid',gid)
+              .append(
+                $('<td>').append(game_entry)
+              )
+              .append(
+                $('<td>').append(numplayers_entry)
+              )
+              .append(
+                $('<td>').append(private_entry)
+              )
+              .append(
+                $('<td>').append(verify_entry)
+              )
+              .append(
+                $('<td>').append(autodeal_entry)
+              )
+            );
+          }
+        }
+        if(numgames == 0)
+        {
+          $('#game_list>table>tbody').append(
+            $('<tr>').attr('class','game_entry')
+            .append(
+              $('<td>').text(
+                'There are no games here. Click "Add Game" to add one!'
+              )
+            )
+            .append(
+              $('<td>').append()
+            )
+            .append(
+              $('<td>').append()
+            )
+            .append(
+              $('<td>').append()
+            )
+            .append(
+              $('<td>').append()
+            )
+          );
+        }
+      }
+
+      function lobby_connect(done_func)
+      {
+        socket = io.connect();
+        socket.on('role', function(msg)
+        {
+          done_func();
+        });
+        socket.on('connect', function()
+        {
+          /* We've connected the socket but we still need to tell the
+           * server our role. */
+          socket.emit('role', { role_type:'lobby' });
+        });
+
+        socket.on('message', receive_update);
+      }
+
+      function lobby_show()
+      {
+        send_poll();
+        $('#status').hide();
+        $('#game_list').show();
+        $('#toolbar').show();
+      }
+
+      function send_poll()
+      {
+        socket.emit('message', 'poll');
+      }
+
+      function quick_game()
+      {
+        var message =
+        {
+          command_type: 'add-game'
+        };
+        socket.emit('message', message);
+        setTimeout(send_poll,300);
+      }
+
+      function add_game()
+      {
+        $('#game-name-input').val(generate_name());
+        $('#private-check').attr('checked',false);
+        $('#private-settings').hide();
+        private_settings_clear();
+        $('#verify-nosets-check').attr('checked',false);
+        $('#autodeal-check').attr('checked',false);
+        $('#dialog').dialog('open');
+      }
+
+      function lobby_setup()
+      {
+        $('#add_game').on('click', add_game);
+        $('#quick_game').on('click', quick_game);
+      }
+
+      function private_settings_clear()
+      {
+        private_settings_last_line = undefined;
+        $('#private-users').empty();
+      }
+
+      function userinputize($e)
+      {
+        $e.on('autocompleteselect', function() { $e.trigger('userinputdone'); });
+        $e.on('keypress', function(evt)
+        {
+          if(evt.which == 13)
+          {
+            $e.trigger('userinputdone');
+          }
+        });
+      }
+
+      var private_settings_last_line;
+      function private_settings_add_line()
+      {
+        var userlist = [
+          {for u in userlist}
+             '{u.username}',
+          {/for} 
+        ];
+        var userinput = $('<input>');
+        userinput.autocomplete({source: userlist});
+        userinputize(userinput);
+        $('#private-users').append(userinput).append($('<br>'));
+
+        if(private_settings_last_line !== undefined)
+        {
+          private_settings_last_line.off('userinputdone');
+        }
+        private_settings_last_line = userinput;
+
+        userinput.on('userinputdone', private_settings_add_line);
+        userinput.focus();
+      }
+
+      function dialog_setup()
+      {
+        $('#dialog').dialog({autoOpen: false, minWidth: 500});
+        $('#private-check').on('change', function()
+        {
+          var $t = $(this);
+          if($t.attr('checked'))
+          {
+            $('#private-settings').show();
+            if(private_settings_last_line === undefined)
+              private_settings_add_line();
+          }
+          else
+          {
+            $('#private-settings').hide();
+          }
+        });
+
+        $('#add_button').on('click', function()
+        {
+          game_settings = {
+            game_name: $('#game-name-input').val(),
+            private_game: $('#private-check').attr('checked') === undefined ? false : true,
+            verify_noset: $('#verify-nosets-check').attr('checked') === undefined ? false : true,
+            autodeal: $('#autodeal-check').attr('checked') === undefined ? false : true,
+            private_users: []
+          };
+
+          $('#private-users>input').each(function()
+          {
+            game_settings.private_users.push($(this).val());
+          });
+
+          if(game_settings.game_name.length < 5)
+          {
+            alert("Game name must be at least 5 characters!");
+            return;
+          }
+          
+          $('#dialog').dialog("close");
+
+          var message =
+          {
+            command_type: 'add-game',
+            game_settings: game_settings
+          };
+          socket.emit('message', message);
+          setTimeout(send_poll,300);
+        });
+      }
+
+      $(document).ready(function()
+      {
+        dialog_setup();
+        lobby_setup();
+        lobby_connect(function()
+        {
+          lobby_show();
+          setInterval(send_poll, 2500);
+        });
+
+        $(document).tooltip();
+      });
+    </script>
+
+    {>navbar}
+
+    <div id="main">
+
+    <div id="title"><h1>The Lobby</h1></div>
+
+    <!-- <div id="warning"><span style="color: red; font-weight: bold;">The site is currently being updated with new code. Which means it will be buggy and crashy until further notice. (Hopefully just a few hours).</span></div> -->
+
+    <div id="welcome"><p>Hello, {username}! This is the lobby, where you can
+    meet to play multiplayer games that don't count in any rankings. They do
+    get logged in the statistics though. You may create up to 5 games in the
+    lobby at a time, and lobby games automatically disappear after they remain
+    empty for 3 minutes.</p></div>
+
+    <div id="status">Connecting to server...</div>
+
+    <div id="game_list" style="display: none">
+
+      <table class="pretty_table" style="width: 100%;">
+        <thead>
+          <tr>
+            <td>Games (Click on a game to join!)</td>
+            <td>Num Players</td>
+            <td>Private</td>
+            <td>Verify Deals</td>
+            <td>Autodeal</td>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
+
+    <div id="toolbar" style="display: none;">
+      <a id="quick_game" class="button">Quick Game</a>
+      <a id="add_game" class="button">Add Game</a>
+    </div>
+
+    </div>
+
+    <div id="dialog" title="Add Game" style="display: none;">
+      <label for="game-name-input">Name: </label>
+      <input id="game-name-input" />
+      <br />
+      <input type="checkbox" id="private-check" /> Private
+      <br />
+
+      <div id="private-settings" style="display: none; border: 1px solid black;">
+        Other people allowed in game:
+
+        <div id="private-users">
+
+        </div>
+
+      </div>
+
+      <input type="checkbox" id="verify-nosets-check" /> Verify Deal Correctness 
+      <br />
+      <input type="checkbox" id="autodeal-check" /> Autodeal
+      <br />
+      <a id="add_button" class="button" style="float: right;">Add It!</a>
+    </div>
+
+  </body>
+</html>

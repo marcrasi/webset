@@ -1,0 +1,38 @@
+<script>
+   $(document).ready(function()
+   {
+      $('#game_type').val('{group_selector_data.game_type}'); 
+      $('#username').val('{group_selector_data.username}');
+      
+      $('#game_type').on('change',function()
+      {
+         $('#group_selector').submit();
+      });
+
+      $('#username').on('change',function()
+      {
+         $('#group_selector').submit();
+      });
+   });
+</script>
+
+<form id="group_selector">
+Displaying this statistic for games 
+{if group_selector_data.selection_options.game_type}
+of type
+<select name="game_type" id="game_type">
+   {for gt in group_selector_data.game_types}
+      <option value="{gt}">{gt}</option>
+   {/for}
+</select>
+{/if}
+{if group_selector_data.selection_options.username}
+played by
+<select name="username" id="username">
+   {for un in group_selector_data.usernames}
+      <option value="{un}">{un}</option>
+   {/for}
+</select>
+{/if}
+.
+</form>

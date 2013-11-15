@@ -1,0 +1,110 @@
+<html>
+   <head>
+      <title>Multiplayer Set Game Heat Map</title>
+
+      <script src="jquery.js"></script>
+
+      <link rel="stylesheet" type="text/css" href="structure.css">
+      <link rel="stylesheet" type="text/css" href="button.css">
+      <link rel="stylesheet" type="text/css" href="prettytable.css">
+   </head>
+   <body>
+      <script>
+         /* Geometry numbers */
+         var card_height = 92;
+         var card_width = 142;
+         var card_padding = 0;
+      </script>
+
+      <script>
+         /* Indexing utils */
+         function pos_to_relcoos(pos)
+         {
+            var ret = [];
+            ret.push(pos[0]*(card_height+2*card_padding));
+            ret.push(pos[1]*(card_width+2*card_padding));
+            return ret;
+         };
+
+         function posidx_to_relpos(posidx)
+         {
+            var pos = [];
+            pos.push(Math.floor(posidx/3));
+            pos.push(posidx % 3);
+            return pos_to_relcoos(pos);
+         }
+
+         function cardidxtoarr(cardidx)
+         {
+            var arr = [];
+            for(var i = 0; i < 4; i++)
+            {
+               arr.push(cardidx % 3);
+               cardidx = Math.floor(cardidx/3);
+            }
+            return arr;
+         }
+      </script>
+
+      <script>
+         var heat_data = {stat_data};
+         heat_data = heat_data[0].statistic;
+
+         $(document).ready(function()
+         {
+            var maxcount = 0;
+            var sum = 0;
+            for(var i = 0; i < heat_data.length; i++)
+            {
+               if(heat_data[i] > maxcount)
+               {
+                  maxcount = heat_data[i];
+               }
+               sum = sum + heat_data[i];
+            }
+
+            for(var i = 0; i < heat_data.length; i++)
+            {
+               var rval = Math.floor(heat_data[i]/maxcount*255);
+               if(maxcount == 0)
+                  rval = 0;
+               var pos = posidx_to_relpos(i);
+               var elem = $('<div>');
+               $('#heatmap').append(elem);
+               elem.css('height', card_height);
+               elem.css('width', card_width);
+               elem.css('position', 'absolute');
+               elem.css('left', pos[1]);
+               elem.css('top', pos[0]);
+               elem.css('background-color', 'rgb(' + rval + ',0,' + (255-rval) + ')');
+               elem.css('text-align','center');
+
+               var str = '';
+               str += heat_data[i].toString() + ' ';
+               if(maxcount != 0)
+                  str += '(' + Math.floor(heat_data[i]/sum*100).toString() + '%)';
+
+               var text = $('<span>');
+               elem.append(text);
+               text.css('color', 'white');
+               text.html('<br/><br/>' + str); /* DO YOU REALIZE HOW HARD IT IS
+               TO VERTICALLY CENTER THINGS? I COULDN'T DO IT PROPERLY SO I USED
+               <br/> INSTEAD. IT WOULD BE NICE TO MAKE THIS MORE PROPER THOUGH
+               */
+            }
+         });
+      </script>
+
+      {>navbar}
+
+      <div id="main">
+
+      <h1>Heat Map</h1>
+
+      {>group_selector}
+
+      <div id="heatmap" style="position:relative;"></div>
+
+      </div>
+   </body>
+</html>
