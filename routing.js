@@ -2,6 +2,11 @@ var db = require("mongojs").connect("set-game", ["games", "ss_ranked_results", "
 var fs = require('fs');
 var navbar = fs.readFileSync('views/navbar.html');
 
+var warning = fs.readFileSync('views/warning.html');
+setInterval(function() {
+   warning = fs.readFileSync('views/warning.html');
+}, 60000);
+
 function pretty_duration(ms_dur)
 {
    var duration = '';
@@ -80,6 +85,7 @@ app.get('/',function(req,res)
         username: req.session.username,
         navbar: navbar,
         userlist: userlist,
+        warning: warning
      });
    });
 });
@@ -263,6 +269,7 @@ app.get('/speed_solve.html',function(req,res)
                rankdate: rankdate,
                prevrankdate: prevrankdate,
                nextrankdate: nextrankdate,
+               warning: warning
             };
             if(rankings.length > 0)
                renderdata.rankings = rankings;
@@ -391,7 +398,8 @@ app.get('/game_history.html',function(req,res)
    }).sort(
    { /* sort field */
       timestamp: -1
-   },
+   }).limit(
+      100,
    function(err, games) /* response function */
    {
       if(err)
