@@ -1,4 +1,4 @@
-var db = require("mongojs").connect("set-game", ["games", "ss_ranked_results", "users"]);
+var db = require("./dbconnection");
 var fs = require('fs');
 var navbar = fs.readFileSync('views/navbar.html');
 
@@ -39,26 +39,6 @@ function pretty_duration(ms_dur)
 
 exports.apply = function(app)
 {
-app.get('/games_dump.json',function(req,res)
-{
-  var start = parseInt(req.query.start, 10);
-  db.games.find(
-  { /* query */
-    /* none */
-  }).skip(start).limit(100,
-  function(err,qres) /* result function */  {
-    if(err)
-    {
-      res.end('Database error');
-      return;
-    }
-
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.write(JSON.stringify(qres));
-    res.end();
-  });
-});
-
 app.get('/games_dump_instructions.html',function(req,res)
 {
   res.render('games_dump_instructions.html', {navbar: navbar});
@@ -66,17 +46,11 @@ app.get('/games_dump_instructions.html',function(req,res)
 
 app.get('/',function(req,res)
 {
-   db.users.find(
-   { /* query */
-      /* none */
-   },
-   { /* relevant fields */
-      username: 1
-   },
-   function(err, userlist) /* result function */
+   db.runQuery(db.createQuery('User'), function(err, userlist)
    {
      if(err)
      {
+        console.error(err);
         res.end('Database error');
         return;
      }
@@ -114,15 +88,15 @@ app.get('/speed_solve.html',function(req,res)
    var nextrankdate = dummy.toDateString();
 
    /* Calculate the status of today's game */
-   db.ss_ranked_results.find(
-   { /* query */
-      username: username,
-      date: todaydate
-   },
-   function(err,ret) /* result function */
+   var existingResultQuery = db
+     .createQuery('SSRankedResult')
+     .filter('username', username)
+     .filter('date', todaydate);
+   db.runQuery(existingResultQuery, function(err,ret)
    {
       if(err)
       {
+         console.error(err);
          res.end("Database error");
          return;
       }
@@ -137,20 +111,19 @@ app.get('/speed_solve.html',function(req,res)
       }
 
       /* Get the day's rankings */
-      db.ss_ranked_results.find(
-      { /* query */
-         date: rankdate
-      }).sort(
-      { /* sort field */
-         solve_time: 1
-      },
-      function(err2,rankings) /* result function */
+      var dayRankingsQuery = db
+         .createQuery('SSRankedResult')
+         .filter('date', rankdate)
+      db.runQuery(dayRankingsQuery, function(err2,rankings)
       {
          if(err2)
          {
+            console.error(err2);
             res.end("Database error");
             return;
          }
+
+         rankings.sort(function(a, b) { return a.solve_time - b.solve_time });
 
          for(var i = 0; i < rankings.length; i++)
          {
@@ -173,23 +146,18 @@ app.get('/speed_solve.html',function(req,res)
             date_to_idx[tmp_date.toDateString()] = i;
          }
          var start_date = all_dates[6];
-         var end_date = all_dates[0]; 
+         var end_date = all_dates[0];
          var start_timestamp = start_date.valueOf()-1;
          var end_timestamp = end_date.valueOf()+1;
-         var query =
-         {
-            $and:
-            [
-            {timestamp: {$gt: start_timestamp}},
-            {timestamp: {$lt: end_timestamp}}
-            ]
-         };
-         console.log(start_timestamp);
-         console.log(end_timestamp);
-         db.ss_ranked_results.find(query,function(err3,seven_results)
+         var query = db
+            .createQuery('SSRankedResult')
+            .filter('timestamp', '>', start_timestamp)
+            .filter('timestamp', '<', end_timestamp);
+         db.runQuery(query,function(err3,seven_results)
          {
             if(err3)
             {
+               console.error(err3);
                res.end("Database error");
                return;
             }
@@ -200,7 +168,7 @@ app.get('/speed_solve.html',function(req,res)
                var tun = seven_results[i].username;
                if(!seven_rankings.hasOwnProperty(tun))
                {
-                  seven_rankings[tun] = 
+                  seven_rankings[tun] =
                   {
                      sum: 0,
                      sumsq: 0,
@@ -258,8 +226,8 @@ app.get('/speed_solve.html',function(req,res)
             for(var i = 0; i < seven_rankings_arr.length; i++)
             {
                seven_rankings_arr[i].rank = i+1;
-            }  
-      
+            }
+
             var renderdata =
             {
                username: username,
@@ -336,40 +304,29 @@ app.get('/settings.html',function(req,res)
   var username = req.session.username;
 
   /* Get the old settings from the database */
-  db.users.find(
-  { /* query */
-    username: username
-  },
-  { /* relevant fields */
-    settings: 1
-  },
-  function(err, settings) /* response function */
+  var username_query = db.createQuery('User').filter('username', username).limit(1);
+  db.runQuery(username_query, function(err, users)
   {
-    if(err || settings.length != 1)
+    if(err || users.length != 1)
     {
+      console.error(err);
       res.end('database error');
       return;
     }
 
-    if(settings[0].hasOwnProperty('settings'))
+    var settings = {};
+    if(users[0].hasOwnProperty('settings'))
     {
-      settings = settings[0]['settings'];
-    }
-    else
-    {
-      settings = {};
+      settings = users[0]['settings'];
     }
 
     /* Create the new settings! */
     create_new_settings(settings, req.query);
 
     /* Update the database with them! */
-    db.users.update(
-    {
-      username: username
-    },
-    {
-      $set: {settings: settings}
+    db.save({
+       key: users[0][db.KEY],
+       data: users[0]
     });
 
     /* Send them the settings page! */
@@ -385,25 +342,16 @@ app.get('/settings.html',function(req,res)
 var strftime = require("strftime");
 app.get('/game_history.html',function(req,res)
 {
-   db.games.find(
-   { /* query */
-      ever_players: req.session.username,   
-   },
-   { /* relevant fields */
-      ever_players_scores: 1,
-      always_players: 1,
-      timestamp: 1,
-      duration: 1,
-      game_type: 1
-   }).sort(
-   { /* sort field */
-      timestamp: -1
-   }).limit(
-      100,
-   function(err, games) /* response function */
+   var my_games_query = db
+     .createQuery('GameLogMetadata')
+     .filter('ever_players', req.session.username)
+     .order('timestamp', {descending: true})
+     .limit(20);
+   db.runQuery(my_games_query, function(err, games)
    {
       if(err)
       {
+         console.error(err);
          res.end('Database error');
       }
       else
@@ -427,12 +375,13 @@ app.get('/game_history.html',function(req,res)
                other_players = '--';
 
             var present_whole_game = '';
-            for(var j = 0; j < g.always_players.length; j++)
+            var always_players = g.always_players || [];
+            for(var j = 0; j < always_players.length; j++)
             {
-               if(g.always_players[j] === req.session.username)
+               if(always_players[j] === req.session.username)
                   break;
             }
-            if(j == g.always_players.length)
+            if(j == always_players.length)
                present_whole_game = 'No';
             else
                present_whole_game = 'Yes';
@@ -442,9 +391,9 @@ app.get('/game_history.html',function(req,res)
             game_entries.push(
             {
                date: strftime('%B %d, %Y at %H:%M:%S', new Date(g.timestamp)),
-               duration: duration, 
+               duration: duration,
                present_whole_game: present_whole_game,
-               sets_acquired: g.ever_players_scores[req.session.username].toString(), 
+               sets_acquired: g.ever_players_scores[req.session.username].toString(),
                other_players: other_players,
                game_type: g.game_type
             });

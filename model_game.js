@@ -1,11 +1,12 @@
-var db = require("mongojs").connect("set-game", ["games"]);
+var db = require("./dbconnection");
+var storage = require('./storage');
 
 var model_game = function(par)
 {
    var game_in_progress = false; //bool true/false
    var unused_cards = []; //The cards still in the deck
    var table = []; //The cards on the table
-   
+
    /* playerid->score maps */
    var beginning_players = {}; // who was here when the game started
    var ever_players = {}; // who was ever in this game
@@ -17,7 +18,7 @@ var model_game = function(par)
    var noset_declarers = []; //list of people who have declared no sets
    var last_card_add_timestamp = 0; //last time we've added cards
 
-   var on_vidx = 0; 
+   var on_vidx = 0;
    var viewers = {}; //The viewers viewing this game
    var viewer_stateid = {}; //The stateid that the viewer currently has
 
@@ -83,7 +84,7 @@ var model_game = function(par)
       return setfound;
    }
    /*** END CODE TO CHECK IF SETS EXIST ***/
- 
+
    var generate_complete_update = function()
    {
       var cp_table = [];
@@ -108,7 +109,7 @@ var model_game = function(par)
       var tupdate =
       {
          update_type: 'complete-update',
-         players: cp_players, // playerid->score 
+         players: cp_players, // playerid->score
          table: cp_table, // array of cards
          stateid: stateid,
          cards_left: unused_cards.length,
@@ -129,12 +130,12 @@ var model_game = function(par)
 
       return tupdate;
    }
- 
+
    var log_update = function(update)
    {
       update_history.push(update);
    }
-  
+
    /* Update all viewers to the current state of the game */
    /* Pass us the latest update to happen. Any viewer who is a stateid-1 will
       merely get this update. Other viewers get the entire game state. */
@@ -245,10 +246,6 @@ var model_game = function(par)
       /* TODO: maybe error check to make sure the same player doesn't join
        * twice? */
 
-      console.log(players);
-      console.log(beginning_players);
-      console.log(ever_players);
-
       if(players.hasOwnProperty(action.playerid))
       {
          return;
@@ -268,10 +265,6 @@ var model_game = function(par)
       if(!update.hasOwnProperty('players_joined'))
          update.players_joined = {};
       update.players_joined[action.playerid] = ever_players[action.playerid];
-
-      console.log(players);
-      console.log(beginning_players);
-      console.log(ever_players);
    };
 
    var execute_leave = function(action, update)
@@ -367,11 +360,11 @@ var model_game = function(par)
       players[action.playerid] += 1;
       ever_players[action.playerid] += 1;
       update.player_scoredeltas[action.playerid] = 1;
-     
+
       /* Anyone with a noset-request gets the request cleared */
       noset_declarers = [];
       update.noset_declarers = noset_declarers;
-      
+
       /* Cards get added if we have autodeal on and there are no sets */
       while(par.autodeal && unused_cards.length > 0 && !set_exists())
       {
@@ -380,7 +373,7 @@ var model_game = function(par)
       if(par.autodeal && unused_cards.length == 0 && !set_exists())
       {
         execute_end_game(action, update);
-      } 
+      }
 
       update.cards_added.reverse(); //want these to come off fifoed
    };
@@ -488,32 +481,61 @@ var model_game = function(par)
          }
       }
 
-      var game_log = 
+      var serializable_par = Object.assign({}, par);
+      delete serializable_par['gameover_callback'];
+      delete serializable_par['fixed_deck'];
+
+      var game_log_metadata =
       {
          stats_processed: false,
          game_type: par.type,
          ever_players: ever_players_arr,
-         ever_players_scores: ever_players, 
+         ever_players_scores: ever_players,
          always_players: always_players_arr,
          num_noset_bad: num_noset_bad,
          timestamp: game_start_timestamp,
-         duration: (action.timestamp-game_start_timestamp),
-         actions: action_history,
-         updates: update_history,
-
+         duration: Math.round(action.timestamp-game_start_timestamp),
          version: 2,
-
-         par: par,
+         par: serializable_par,
       };
 
-      /* Save in the database of games */
-      db.games.save(game_log, function()
-      { 
-         /* Ask for a statistics incremental update */
-         exec('python2 statistics/incremental_calculation.py', function(e, so, se)
-         {
-            console.log('Incremental update done with result ' + so);
-         });  
+      var game_log = Object.assign({}, game_log_metadata, {
+         actions: action_history,
+         updates: update_history,
+      });
+      game_log.par = Object.assign({}, game_log.par, {fixed_deck: par.fixed_deck});
+      delete game_log['stats_processed'];
+
+      var game_log_id = '' + game_log_metadata.timestamp + '-' + Math.round(1000000 * Math.random());
+      var game_log_file = storage.file('games/' + game_log_id + '.json');
+
+      var gcsOptions = {
+        gzip: true,
+        metadata: {
+          cacheControl: 'public, max-age=3600, no-transform',
+          contentType: 'application/json'
+        }
+      }
+      game_log_file.save(JSON.stringify(game_log), gcsOptions, function(err) {
+         if (err) {
+            console.error(err);
+         } else {
+            var game_log_metadata_key = db.key(['GameLogMetadata', game_log_id]);
+            db.save({
+               key: game_log_metadata_key,
+               data: game_log_metadata
+            }, function(err) {
+                if (err) {
+                   console.error(err);
+                } else {
+                /* Ask for a statistics incremental update */
+                   exec('python statistics/incremental_calculation.py', function(e, so, se)
+                   {
+                      console.log('Incremental update ran', so, se);
+                   });
+                }
+            });
+         }
       });
 
       /* If the person who made this asked for us to do something, to it */
@@ -609,12 +631,12 @@ var model_game = function(par)
         table.push(newcard);
       }
 
-      /* And the game is now in progress */ 
+      /* And the game is now in progress */
       game_in_progress = true;
       game_start_timestamp = Date.now();
 
       /* Start off our history with a complete update of the beginning state */
-      update_history = [ generate_complete_update() ];      
+      update_history = [ generate_complete_update() ];
    }
 
    /* Execute one pending action and return the resulting update object */
@@ -751,8 +773,8 @@ var model_game = function(par)
    var ret =
    {
 
-/* Stick the action in our update queue for eventual evaluation */ 
-eval_action: 
+/* Stick the action in our update queue for eventual evaluation */
+eval_action:
 function(action)
 {
    pending_actions.push(action);

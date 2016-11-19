@@ -43,8 +43,6 @@ exports.handle_connection = function(username, gameid, socket)
    if(!game_structure.everyone_allowed &&
       !game_structure.allowed_players.hasOwnProperty(username))
    {
-      console.log(game_structure.everyone_allowed);
-      console.log(game_structure.allowed_players);
       socket.emit('role', { error: 'You are not allowed in this game' });
       return;
    }
@@ -78,7 +76,7 @@ exports.pass_game = function(par)
    var gameid = ongameid++;
    active_games[gameid] = par;
    active_games[gameid].last_nonempty_time = Date.now();
-   return gameid; 
+   return gameid;
 };
 
 /* Returns the game that gameid points to */
@@ -104,7 +102,7 @@ function handle_timeouts()
             if(Date.now()-active_games[gid].last_nonempty_time>active_games[gid].empty_timeout)
          {
             active_games[gid].game.cleanup();
-            delete active_games[gid]; 
+            delete active_games[gid];
          }
       }
    }

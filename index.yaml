@@ -1,0 +1,20 @@
+indexes:
+
+- kind: GameLogMetadata
+  ancestor: no
+  properties:
+  - name: ever_players
+  - name: timestamp
+    direction: desc
+
+- kind: CoefficientStat 
+  ancestor: no
+  properties:
+  - name: game_type
+  - name: username
+
+- kind: HeatMapStat
+  ancestor: no
+  properties:
+  - name: game_type
+  - name: username

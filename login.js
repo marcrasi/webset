@@ -1,5 +1,9 @@
-var db = require("mongojs").connect("set-game", ["users"]);
+var db = require("./dbconnection");
 var crypto = require("crypto");
+
+function _username_query(un) {
+  return db.createQuery('User').filter('username', un).limit(1);
+}
 
 /* Shows a login page with the given message */
 function show_login_page(res, message)
@@ -19,10 +23,11 @@ function authenticate(req, func)
    var un = req.body.username;
    var pw = req.body.password;
 
-   db.users.find({username:un}, function(err, user)
+   db.runQuery(_username_query(un), function(err, user)
    {
       if(err)
       {
+         console.error(err);
          func(false, 'database error');
       }
       else if(user.length == 0)
@@ -77,10 +82,11 @@ function register(req, func)
    var email = req.body.email; //just kidding, we don't validate this
 
    /* Notice the race condition. TODO: fix it. */
-   db.users.find({username:un}, function(err,usernames)
+   db.runQuery(_username_query(un), function(err,usernames)
    {
       if(err)
       {
+         console.error(err);
          func('database error');
          return;
       }
@@ -96,6 +102,7 @@ function register(req, func)
       {
          if(err)
          {
+            console.error(err);
             func('Password hashing error');
             return;
          }
@@ -110,22 +117,27 @@ function register(req, func)
          };
 
          /* Save this user in database */
-         db.users.insert(
+         var key = db.key('User');
+         db.save(
          {
-            username: un,
-            password: (new Buffer(pwhash,'binary')).toString('base64'),
-            salt: salt, //(new Buffer(salt,'binary')).toString('base64'),
-            email: email,
-            settings: settings
+            key: key,
+            data: {
+               username: un,
+               password: (new Buffer(pwhash,'binary')).toString('base64'),
+               salt: salt, //(new Buffer(salt,'binary')).toString('base64'),
+               email: email,
+               settings: settings
+            }
          },
          function(err)
          {
             if(err)
             {
+               console.error(err);
                func('database error on insertion');
                return;
             }
-   
+
             func(true);
          });
       });

@@ -1,5 +1,4 @@
-var db = require("mongojs").connect("set-game",
-    ["ss_practice_results", "ss_ranked_decks", "ss_ranked_results"]);
+var db = require("./dbconnection");
 var model_game = require('./model_game');
 
 /* Map of username->{the gid for the practice they have open, if any} */
@@ -12,17 +11,21 @@ var ranked_open = {};
 
 var game_manager;
 
+function _fixed_deck_date_query(date) {
+   return db.createQuery('SSRankedDeck').filter('date', date);
+}
+
 function redirect_to_gid(res, res, gid)
 {
    res.statusCode = 301;
    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
    res.setHeader("Pragma", "no-cache");
-   res.setHeader("Expires", 0);   
+   res.setHeader("Expires", 0);
    res.setHeader('Location', 'game2.html?gameid=' + gid.toString());
    res.end('Redirecting to your game');
 }
 
-function insert_result_curry(table, username, date)
+function insert_result_curry(kind, username, date)
 {
    return function(game_log)
    {
@@ -36,12 +39,16 @@ function insert_result_curry(table, username, date)
          timestamp = (new Date(date)).valueOf();
       }
 
-      db[table].insert({
-         username: username,
-         timestamp: timestamp,
-         date: date,
-         solve_time: game_log.duration,
-         num_noset_bad: num_noset_bad,
+      var key = (kind == 'SSRankedResult') ? db.key([kind, username + '~' + date]) : db.key(kind);
+      db.save({
+         key: key,
+         data: {
+            username: username,
+            timestamp: Math.round(timestamp),
+            date: date,
+            solve_time: Math.round(game_log.duration),
+            num_noset_bad: num_noset_bad,
+         }
       });
    };
 }
@@ -58,7 +65,7 @@ function start_practice(req, res)
       {
          type: 'practice-solitaire',
          strict_noset: true,
-         gameover_callback: insert_result_curry("ss_practice_results", username, "N/A")
+         gameover_callback: insert_result_curry("SSPracticeResult", username, "N/A")
       };
       var game = model_game.model_game(game_par);
       var allowed_players = {};
@@ -76,7 +83,7 @@ function start_practice(req, res)
 
    /* Redirect them to the game they have */
    var gid = practice_open[username];
-   redirect_to_gid(req, res, gid); 
+   redirect_to_gid(req, res, gid);
 }
 
 function start_ranked(req, res)
@@ -95,29 +102,32 @@ function start_ranked(req, res)
    if(reqdate != today_str && reqdate != yesterday_str)
    {
       res.end('Error, bad date!');
-      return; 
+      return;
    }
 
    /* Check to make sure you have not played this date already */
-   db.ss_ranked_results.find({username:username,date:reqdate},function(err,ret)
+
+   db.get(db.key(['SSRankedResult', username + '~' + reqdate]), function(err,ret)
    {
       if(err)
       {
+         console.error(err);
          res.end('Database error!');
          return;
       }
-      if(ret.length>0)
+      if(ret != undefined)
       {
          res.end('You appear to have already played this date!');
          return;
       }
 
       /* Load up the fixed deck */
-      db.ss_ranked_decks.find({date:reqdate},function(err2,ret2)
+      db.runQuery(_fixed_deck_date_query(reqdate),function(err2,ret2)
       {
 
          if(err2)
          {
+            console.error(err2);
             res.end('Database error!');
             return;
          }
@@ -137,8 +147,8 @@ function start_ranked(req, res)
                type: 'ranked-solitaire',
                strict_noset: true,
                max_num_starts: 1,
-               fixed_deck: ret2[0].deck,
-               gameover_callback: insert_result_curry("ss_ranked_results", username, reqdate)
+               fixed_deck: JSON.parse(ret2[0].deck),
+               gameover_callback: insert_result_curry("SSRankedResult", username, reqdate)
             };
             var game = model_game.model_game(game_par);
             var allowed_players = {};
@@ -233,20 +243,24 @@ function add_deck_to_date_curry(datestr)
    {
       if(err)
       {
-         console.log("Database error while fixing decks!");
+         console.error("Database error while fixing decks!", err);
          return;
       }
       if(ret.length==0)
       {
-         db.ss_ranked_decks.insert(
-         {
-            date: datestr,
-            deck: random_deck()
-         },function(err2,ret2)
+         var key = db.key('SSRankedDeck');
+         db.save({
+            key: key,
+            data: {
+               date: datestr,
+               deck: JSON.stringify(random_deck())
+            }
+         },
+         function(err2,ret2)
          {
             if(err2)
             {
-               console.log("Database error while inserting fixed deck!");
+               console.log("Database error while inserting fixed deck!", err2);
             }
          });
       }
@@ -263,8 +277,11 @@ function make_fixed_decks()
       var thisdate = new Date();
       thisdate.setDate(now.getDate()+i);
       var thisstr = thisdate.toDateString();
-      db.ss_ranked_decks.find({date:thisstr},add_deck_to_date_curry(thisstr))
+      db.runQuery(_fixed_deck_date_query(thisstr), add_deck_to_date_curry(thisstr));
    }
 }
 make_fixed_decks();
-setInterval(make_fixed_decks, 3600*1000); //every hour is overkill but whatever
+
+// Regenerate fixed decks every 12 hours. (Since we make 3 days in advance, this is plenty
+// frequently).
+setInterval(make_fixed_decks, 12*60*60*1000);

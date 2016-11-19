@@ -25,4 +25,4 @@ def aggregate_statistics(stats):
    return agg
 
 def table_name():
-   return 'heat_map_stats'
+   return 'HeatMapStat'

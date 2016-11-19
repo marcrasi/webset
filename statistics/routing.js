@@ -1,9 +1,9 @@
-var db = require("mongojs").connect("set-game", ["heat_map_stats","coefficient_stats", "users"]);
+var db = require("../dbconnection");
 var fs = require('fs');
 var navbar = fs.readFileSync('views/navbar.html');
 var group_selector = fs.readFileSync('statistics/group_selector.html');
 
-function render_statistic(req,res,filename,tablename,selection_options)
+function render_statistic(req,res,filename,kind,selection_options)
 {
    var data = {};
 
@@ -22,10 +22,11 @@ function render_statistic(req,res,filename,tablename,selection_options)
       'practice-solitaire'
    ];
    data.group_selector_data.selection_options = selection_options;
-   db.users.find({},{username:1},function(err,usernames)
+   db.runQuery(db.createQuery('User'), function(err, usernames)
    {
       if(err)
       {
+         console.error(err);
          res.end('Database error');
          return;
       }
@@ -41,23 +42,28 @@ function render_statistic(req,res,filename,tablename,selection_options)
          selected_game_type = '(ALL)';
       var selected_username = req.query['username'];
       if(selected_username === undefined)
-         selected_username = req.session.username; 
+         selected_username = req.session.username;
       data.group_selector_data.game_type = selected_game_type;
       data.group_selector_data.username = selected_username;
 
       /* Get the actual statistic! */
-      var query = {};
+      var query = db.createQuery(kind);
       if(selection_options.username)
-         query.username = selected_username;
+         query.filter('username', selected_username);
       if(selection_options.game_type)
-         query.game_type = selected_game_type;
-      db[tablename].find(query).sort({username:1}, function(err, stat_data)
+         query.filter('game_type', selected_game_type);
+      query.order('username');
+      db.runQuery(query, function(err, stat_data)
       {
          if(err)
          {
+            console.error(err);
             res.end('Database error');
             return;
          }
+         stat_data.forEach(function(x) {
+            x.statistic = JSON.parse(x.statistic.toString('utf8'));
+         });
          data.stat_data = JSON.stringify(stat_data);
          res.render(filename,data);
       });
@@ -69,14 +75,14 @@ exports.apply = function(app)
 {
    app.get('/heat_map.html',function(req,res)
    {
-      render_statistic(req,res,'heat_map.html','heat_map_stats',
+      render_statistic(req,res,'heat_map.html','HeatMapStat',
          {username: true, game_type: true});
          //{username: true});
          //{game_type: true});
    });
    app.get('/coefficients.html',function(req,res)
    {
-      render_statistic(req,res,'coefficients.html','coefficient_stats',
+      render_statistic(req,res,'coefficients.html','CoefficientStat',
          {game_type: true});
    });
 };

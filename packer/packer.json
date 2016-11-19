@@ -1,0 +1,51 @@
+{
+  "builders": [{
+    "type": "googlecompute",
+    "account_file": "../gc_credentials.json",
+    "tags": ["webset"],
+    "project_id": "static-homepage",
+    "source_image": "debian-8-jessie-v20161027",
+    "ssh_username": "webset",
+    "zone": "us-central1-f"
+  }],
+  "provisioners": [{
+    "type": "file",
+    "source": "webset.conf",
+    "destination": "/tmp/webset.conf"
+  }, {
+    "type": "shell",
+    "inline": [
+      "sleep 100",
+
+      "sudo apt-get install -y unzip",
+      "wget https://storage.googleapis.com/pub/gsutil.zip",
+      "unzip gsutil.zip",
+
+      "mkdir -p /tmp/configuration-webset",
+      "gsutil/gsutil cp -r gs://marcrasi-configuration/webset/* /tmp/configuration-webset/",
+
+      "mkdir -p ~/.ssh",
+      "mv /tmp/configuration-webset/ssh/* ~/.ssh",
+      "chmod 600 ~/.ssh/*",
+
+      "curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -",
+      "sudo apt-get install -y git nodejs build-essential",
+
+      "sudo apt-get install -y python-dev python-pip",
+      "sudo pip install google-cloud",
+
+      "git clone git@github.com:marcrasi/webset.git",
+      "cd webset",
+      "mv /tmp/configuration-webset/application_config.json .",
+      "chmod 600 application_config.json",
+      "npm install",
+
+      "sudo apt-get install -y supervisor",
+      "sudo mv /tmp/webset.conf /etc/supervisor/conf.d",
+
+      "sudo apt-get install -y haproxy"
+      "sudo apt-get install -y certbot -t jessie-backports"
+    ]
+  }]
+}
+

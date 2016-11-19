@@ -1,6 +1,32 @@
 var name_generator = require('./name_generator');
 var model_game = require('./model_game');
-var db = require("mongojs").connect("set-game", ["users"]);
+var db = require("./dbconnection");
+
+function _get_valid_usernames(candidates, callback) {
+  if (candidates.length == 0) {
+    callback(false, []);
+  } else {
+    var query = db.createQuery('User').filter('username', candidates[0]);
+    db.runQuery(query, function(err, results) {
+      if (err) {
+        console.error(err);
+        callback(err, null);
+      } else {
+        _get_valid_usernames(candidates.slice(1), function(err, valid_usernames) {
+          if (err) {
+            console.error(err);
+            callback(err, null)
+          } else {
+            for(var i = 0; i < results.length; i++) {
+              valid_usernames.push(results[i].username);
+            }
+            callback(false, valid_usernames);
+          }
+        });
+      }
+    });
+  }
+}
 
 var model_lobby = function(game_manager)
 {
@@ -8,7 +34,7 @@ var model_lobby = function(game_manager)
    /* a lobby_game_structure looks like this:
    {
       name:
-      creator: 
+      creator:
    }*/
 
    var creators = {}; /* username->{num active created games} map */
@@ -48,7 +74,7 @@ var model_lobby = function(game_manager)
                   if(iamingame)
                   {
                     response[gid] = {
-                      name: games[gid].name, 
+                      name: games[gid].name,
                       numplayers: game.get_numplayers(),
                       private_game: games[gid].private_game,
                       autodeal: games[gid].autodeal,
@@ -87,24 +113,15 @@ var model_lobby = function(game_manager)
 
             /* Fix up list of private users to only have actual valid users in it */
             message.game_settings.private_users.push(username);
-            db.users.find(
-            { /* query */
-              username: { $in: message.game_settings.private_users }
-            },
-            { /* relevant fields */
-              username: 1
-            },
-            function(err, userlist) /* response function */
+            _get_valid_usernames(message.game_settings.private_users, function(err, valid_usernames)
             {
-              if(err)
-                return;
+              if(err) {
+                 console.error(err);
+                 return;
+              }
 
               message.game_settings.private_users = [];
-              console.log(userlist);
-              for(var i = 0; i < userlist.length; i++)
-              {
-                message.game_settings.private_users.push(userlist[i].username);
-              }
+              message.game_settings.private_users = valid_usernames;
 
               /* Make the game */
               var game_par =
@@ -131,7 +148,7 @@ var model_lobby = function(game_manager)
                  }
               }
               var gid = game_manager.pass_game(manager_par);
-              
+
               /* Register game with ourselves */
               games[gid] =
               {

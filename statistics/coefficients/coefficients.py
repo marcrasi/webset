@@ -1,4 +1,4 @@
-#Our statistic is a dict with keys 
+#Our statistic is a dict with keys
 #  {monocolor, mononumber, monoshape, monoshading, total}
 #Each key maps to the number of sets picked up with the corresponding
 #property
@@ -44,4 +44,4 @@ def aggregate_statistics(stats):
    return agg
 
 def table_name():
-   return 'coefficient_stats'
+   return 'CoefficientStat'

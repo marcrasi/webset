@@ -1,0 +1,6 @@
+gc_credentials.json
+
+.*.swp
+.swp
+
+node_modules/*

@@ -1,4 +1,4 @@
-var db = require("mongojs").connect("set-game", ["users"]);
+var db = require("./dbconnection");
 
 var viewer_player = function(username)
 {
@@ -6,8 +6,8 @@ var viewer_player = function(username)
 
    var game; //which game we are viewing
    var viewer_idx; //our index in the game
-   
-   var ret = 
+
+   var ret =
    {
       register_socket: function(sk)
       {
@@ -23,28 +23,19 @@ var viewer_player = function(username)
          });
 
          /* Send the view our settings */
-         db.users.find(
-         { /* query */
-           username: username
-         },
-         { /* relevant fields */
-           settings: 1
-         },
-         function(err, settings) /* response function */
+         var username_query = db.createQuery('User').filter('username', username).limit(1);
+         db.runQuery(username_query, function(err, users)
          {
-           if(err || settings.length != 1)
+           if(err || users.length != 1)
            {
              /* there's been some kind of database error, so die */
              return;
            }
 
-           if(settings[0].hasOwnProperty('settings'))
+           var settings = {};
+           if(users[0].hasOwnProperty('settings'))
            {
-             settings = settings[0]['settings'];
-           }
-           else
-           {
-             settings = {};
+             settings = users[0]['settings'];
            }
 
            socket.emit('settings', settings);

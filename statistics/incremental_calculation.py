@@ -1,7 +1,16 @@
-#Acquire a lock. (Running this more than once at a time causes tragedies).
+"""
+You must run this from a place that has `application_config.json` in `.`.
+"""
+
+import json
+import time
 import socket
 import sys
-import time
+
+# Sleep to give time for the game to appear in storage.
+time.sleep(10)
+
+# Acquire a lock. (Running this more than once at a time causes tragedies).
 have_lock = False
 num_tries = 0
 while(not have_lock):
@@ -19,6 +28,10 @@ while(not have_lock):
          sys.exit()
    num_tries += 1
 
+# Load application config
+with open('application_config.json', 'r') as f:
+    config = json.load(f)
+
 #load up all the statistics we will calculate into this list
 calculators = []
 import heat_map.process as heat_map
@@ -27,17 +40,39 @@ import coefficients.coefficients as coefficients
 calculators.append(coefficients)
 
 #connect to the database
-from pymongo import Connection
-connection = Connection('localhost', 27017)
-db = connection['set-game']
+from google.cloud import datastore
+from google.cloud import storage
+from google.cloud.exceptions import NotFound
 
-#get all the unprocessed games out of it
+datastore_client = datastore.client.Client()
+storage_client = storage.client.Client()
+bucket = storage_client.get_bucket(config['googleCloudStorageBucket'])
+
+# Get all the unprocessed games out of it
+query = datastore_client.query(kind='GameLogMetadata')
+query.add_filter('stats_processed', '=', False)
+
 games = []
-while(True):
-   game = db.games.find_and_modify({'stats_processed':False},{'$set':{'stats_processed':True}})
-   if(game == None):
-      break
-   games.append(game)
+for game in query.fetch():
+    # Get each game by its key, for strong consistency.
+    strongly_consistent_game = datastore_client.get(game.key)
+    if strongly_consistent_game['stats_processed'] == False:
+        try:
+            blob = bucket.blob('games/' + game.key.name + '.json')
+            game_string = blob.download_as_string()
+            games.append(json.loads(game_string))
+
+            # Set this game as processed, for at-most-once processing.
+            strongly_consistent_game['stats_processed'] = True
+            datastore_client.put(strongly_consistent_game)
+        except NotFound:
+            # This game might not be found because of cloud storage eventual
+            # consistency. It'll get processed in a later incremental calculation.
+            print str(game) + ' not found in storage, passing'
+    else:
+        print str(game) + ' already processed, passing'
+
+print 'Found %d games' % len(games)
 
 from collections import defaultdict
 for calc in calculators:
@@ -62,7 +97,7 @@ for calc in calculators:
          if(not 'game_type' in game):
             game['game_type'] = 'unspecified'
          map_un_type_to_stat_list[p][game['game_type']].append(processed[p])
-          
+
    #aggregate them all together
    map_un_type_to_stat = defaultdict(dict)
    for un in map_un_type_to_stat_list:
@@ -92,11 +127,13 @@ for calc in calculators:
    for un in map_un_type_to_stat:
       for game_type in map_un_type_to_stat[un]:
          new_stats = map_un_type_to_stat[un][game_type]
-         old_stats_doc = db[calc.table_name()].find_one({'username':un,'game_type':game_type})
-         if(old_stats_doc == None):
+         stats_doc = datastore_client.get(datastore_client.key(calc.table_name(), un + '~' + game_type))
+         if(stats_doc == None):
             agg_stats = new_stats
          else:
-            old_stats = old_stats_doc['statistic']
+            old_stats = json.loads(stats_doc['statistic'])
             agg_stats = calc.aggregate_statistics([new_stats, old_stats])
-         db[calc.table_name()].update({'username':un,'game_type':game_type},{'$set':{'statistic':agg_stats}},True)
+         stats_doc['statistic'] = json.dumps(agg_stats)
+
+         datastore_client.put(stats_doc)
 

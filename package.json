@@ -1,0 +1,30 @@
+{
+  "name": "webset",
+  "version": "1.0.0",
+  "description": "webset ======",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/marcrasi/webset.git"
+  },
+  "author": "Marc Rasi",
+  "license": "GPL-2.0",
+  "bugs": {
+    "url": "https://github.com/marcrasi/webset/issues"
+  },
+  "homepage": "https://github.com/marcrasi/webset#readme",
+  "dependencies": {
+    "@google-cloud/datastore": "^0.5.1",
+    "@google-cloud/storage": "^0.5.0",
+    "connect": "^2.7.0",
+    "cookie": "0.0.5",
+    "express": "^3.0.3",
+    "mongojs": "^2.4.0",
+    "socket.io": "^0.9.11",
+    "strftime": "^0.4.7",
+    "whiskers": "^0.2.3"
+  }
+}

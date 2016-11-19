@@ -2,17 +2,20 @@ var express = require('express');
 var connect = require('connect');
 var http = require('http');
 var whiskers = require('whiskers');
+var fs = require('fs');
 
-var login = require('./login'); 
+var login = require('./login');
 
 var sessionStore = new connect.session.MemoryStore;
 
-//set up our express app 
+var configuration = JSON.parse(fs.readFileSync('application_config.json'));
+
+//set up our express app
 var app = express();
 app.set('views', __dirname+'/views');
 app.engine('.html', whiskers.__express);
 app.use(express.cookieParser());
-app.use(express.session( { secret: 'ds2a%%f3^jc2', store: sessionStore } ));
+app.use(express.session( { secret: configuration.expressSession, store: sessionStore } ));
 app.use(express.bodyParser());
 app.use(login.login);
 app.use(app.router);
@@ -26,7 +29,7 @@ server.listen(8154);
 require('./routing').apply(app);
 
 //set up our socket.io server
-var io = require('socket.io').listen(server);
+var io = require('socket.io').listen(server, { log: false });
 var cookie = require('cookie');
 
 /* This stuff gets the session and puts it in the handshake data! */
@@ -35,7 +38,7 @@ io.set('authorization', function(data, ack)
    if(data.headers.cookie)
    {
       var cookies =
-         connect.utils.parseSignedCookies(cookie.parse(data.headers.cookie),'ds2a%%f3^jc2');
+         connect.utils.parseSignedCookies(cookie.parse(data.headers.cookie),configuration.expressSession);
       sessionStore.load(cookies['connect.sid'], function(err, sess)
       {
          if(err)
@@ -70,7 +73,6 @@ io.sockets.on('connection', function(socket)
    }
 
    var username = socket.handshake.session.username;
-   console.log('Connection from ' + username); 
 
    socket.on('role', function(role)
    {
@@ -82,7 +84,7 @@ io.sockets.on('connection', function(socket)
             {
                lobby.poll(username,function(response)
                {
-                  socket.emit('message',response); 
+                  socket.emit('message',response);
                });
             }
             else
@@ -94,10 +96,9 @@ io.sockets.on('connection', function(socket)
       }
       else if(role.role_type == "game")
       {
-         if(role.secret === 'blaberfish_443xfd')
+         if(role.secret === configuration.testAccess)
          {
             username = role.username;
-            console.log('Testing username: ' + username);
          }
 
          game_manager.handle_connection(username, role.gameid, socket);
@@ -119,7 +120,6 @@ io.sockets.on('connection', function(socket)
 
    socket.on('message', function(message)
    {
-      console.log('Rx ' + message.action_type);
       controller.process_message(message);
    });
 
