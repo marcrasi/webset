@@ -3,7 +3,7 @@ webset
 
 This is an in-browser multiplayer set game. It does stuff like lag compensation. It also has a daily puzzle that ranks users by their times.
 
-This used to run on set.marcrasi.com, but my mongo database crashed after running for a few years, and I never had time to bring it back up.
+This currently runs on https://set.marcrasi.com!
 
 Please excuse the quality of the code. I wrote this before I knew anything about javascript or deploying things.
 
