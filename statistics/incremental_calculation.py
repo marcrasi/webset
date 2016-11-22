@@ -127,8 +127,10 @@ for calc in calculators:
    for un in map_un_type_to_stat:
       for game_type in map_un_type_to_stat[un]:
          new_stats = map_un_type_to_stat[un][game_type]
-         stats_doc = datastore_client.get(datastore_client.key(calc.table_name(), un + '~' + game_type))
+         stats_doc_key = datastore_client.key(calc.table_name(), un + '~' + game_type)
+         stats_doc = datastore_client.get(stats_doc_key)
          if(stats_doc == None):
+            stats_doc = datastore.entity.Entity(key)
             agg_stats = new_stats
          else:
             old_stats = json.loads(stats_doc['statistic'])
