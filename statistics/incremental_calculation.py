@@ -134,12 +134,10 @@ for calc in calculators:
             stats_doc['username'] = un
             stats_doc['game_type'] = game_type
             agg_stats = new_stats
-            print stats_doc
          else:
             old_stats = json.loads(stats_doc['statistic'])
             agg_stats = calc.aggregate_statistics([new_stats, old_stats])
          stats_doc['statistic'] = json.dumps(agg_stats)
 
-         print 'Putting %s' % str(stats_doc)
          datastore_client.put(stats_doc)
 
