@@ -139,5 +139,6 @@ for calc in calculators:
             agg_stats = calc.aggregate_statistics([new_stats, old_stats])
          stats_doc['statistic'] = json.dumps(agg_stats)
 
+         print 'Putting %s' % str(stats_doc)
          datastore_client.put(stats_doc)
 
