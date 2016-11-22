@@ -130,7 +130,7 @@ for calc in calculators:
          stats_doc_key = datastore_client.key(calc.table_name(), un + '~' + game_type)
          stats_doc = datastore_client.get(stats_doc_key)
          if(stats_doc == None):
-            stats_doc = datastore.entity.Entity(key)
+            stats_doc = datastore.entity.Entity(stats_doc_key)
             agg_stats = new_stats
          else:
             old_stats = json.loads(stats_doc['statistic'])
