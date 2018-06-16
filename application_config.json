@@ -1,7 +1,6 @@
 {
   "expressSession": "CHANGE_ME_BEFORE_DEPLOY",
   "testAccess": "CHANGE_ME_BEFORE_DEPLOY",
-  "mongoServer": "",
   "googleCloudProjectId": "static-homepage",
   "googleCloudStorageBucket": "marcrasi-webset-staging",
   "googleCloudKeyFilename": "gc_credentials.json"
